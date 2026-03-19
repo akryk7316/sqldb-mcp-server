@@ -5,8 +5,11 @@ import { registerExplainQueryTool } from "../mcp/tools/explainQuery";
 function makeAdapter(
   explainFn: (sql: string) => Promise<ExplainResult>
 ): DBAdapter {
+  // eslint-disable-next-line require-yield
+  async function* noopStream(): AsyncGenerator<Record<string, unknown>> { return; }
   return {
     query: async (): Promise<QueryResult> => ({ rows: [], totalCount: 0 }),
+    queryStream: noopStream,
     listTables: async (): Promise<TableInfo[]> => [],
     describeTable: async (): Promise<TableDescription> => ({
       table: { name: "t", schema: "dbo", rowCount: 0, dataSizeBytes: 0, indexSizeBytes: 0, totalSizeBytes: 0 },

@@ -85,6 +85,12 @@ export interface ExplainResult {
 
 export interface DBAdapter {
   query(sql: string, skip: number, take: number): Promise<QueryResult>;
+  /**
+   * Stream all matching rows without a hard row-count limit.
+   * Intended for large exports; uses a longer timeout pool internally.
+   * Pass an AbortSignal to cancel mid-stream (e.g. on timeout).
+   */
+  queryStream(sql: string, signal?: AbortSignal): AsyncGenerator<Record<string, unknown>>;
   listTables(): Promise<TableInfo[]>;
   describeTable(table: string, schema?: string): Promise<TableDescription>;
   explainQuery(sql: string): Promise<ExplainResult>;

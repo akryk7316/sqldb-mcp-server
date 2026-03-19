@@ -10,7 +10,8 @@ A **read-only** [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
 - **Pagination** – `skip` / `take` parameters with automatic cap at 100 rows
 - **Total-count aware** – every query result includes `meta.totalCount` so the LLM knows how many rows exist
 - **Caching** – query / schema results are cached with a configurable TTL
-- **Three MCP tools**: `query`, `listTables`, `describeTable`
+- **File export** – stream query results to CSV or JSON files without a row-count limit
+- **Five MCP tools**: `query`, `listTables`, `describeTable`, `explainQuery`, `exportQuery`
 
 ## Quick Start
 
@@ -40,7 +41,8 @@ npm start
 | `DB_USER` | – | Database username |
 | `DB_PASSWORD` | – | Database password |
 | `DB_NAME` | – | Database name |
-| `DB_QUERY_TIMEOUT` | `30000` | Query timeout in milliseconds |
+| `DB_QUERY_TIMEOUT` | `30000` | Query timeout in milliseconds (used by `query` / `explainQuery`) |
+| `EXPORT_QUERY_TIMEOUT` | `300000` | Export query timeout in milliseconds (used by `exportQuery`; default 5 min) |
 | `CACHE_TTL` | `60` | Cache TTL in seconds |
 
 ## MCP Tools
@@ -82,6 +84,54 @@ Describe a table's columns, indexes, foreign keys, check constraints, and size s
 { "table": "dbo.users" }
 ```
 
+### `explainQuery`
+
+Return the estimated execution plan for a SELECT query without executing it.
+
+```json
+{ "sql": "SELECT * FROM orders WHERE status = 'open'" }
+```
+
+### `exportQuery`
+
+Stream a SELECT query result to a file.  Designed for large datasets – there is no row-count limit and results are written directly to disk using Node.js streams.
+
+```json
+{
+  "sql": "SELECT * FROM large_table",
+  "filepath": "/tmp/export.csv",
+  "format": "csv",
+  "options": { "delimiter": ",", "bom": false }
+}
+```
+
+`format` defaults to `"csv"` if omitted.  `"json"` is also supported.
+
+**CSV options** (all optional):
+
+| Option | Default | Description |
+|---|---|---|
+| `delimiter` | `","` | Column separator |
+| `nullValue` | `""` | String to write for `NULL` / `undefined` cells |
+| `bom` | `false` | Prepend UTF-8 BOM (useful for Excel) |
+
+**JSON options** (all optional):
+
+| Option | Default | Description |
+|---|---|---|
+| `pretty` | `false` | Indent the output JSON |
+
+Response format:
+```json
+{
+  "filepath": "/tmp/export.csv",
+  "format": "csv",
+  "rowCount": 50000
+}
+```
+
+The tool uses a separate, longer-lived connection pool whose `requestTimeout` is controlled by `EXPORT_QUERY_TIMEOUT` (default 300 000 ms = 5 min).  Increase this value for very large exports.
+
 ## Development
 
 ```bash
@@ -99,9 +149,11 @@ src/
       query.ts          # query tool
       listTables.ts     # listTables tool
       describeTable.ts  # describeTable tool
+      explainQuery.ts   # explainQuery tool
+      exportQuery.ts    # exportQuery tool (streaming file export)
   db/
     index.ts            # DB adapter factory
-    types.ts            # DB interfaces
+    types.ts            # DB interfaces (including queryStream)
     adapters/
       mssql.ts          # MSSQL implementation
   utils/
@@ -109,5 +161,6 @@ src/
     sanitize.ts         # AST-based SQL read-only validation
     pagination.ts       # skip/take normalisation
     cache.ts            # TTL in-memory cache
+    export-writer.ts    # Streaming CSV / JSON file writer
   __tests__/            # Unit tests
 ```
