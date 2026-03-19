@@ -1,0 +1,47 @@
+{
+  "name": "sqldb-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for SQL database access (MSSQL, PostgreSQL, MySQL)",
+  "main": "dist/mcp/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/mcp/server.js",
+    "dev": "ts-node src/mcp/server.ts",
+    "test": "jest --forceExit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akryk7316/sqldb-mcp-server.git"
+  },
+  "keywords": ["mcp", "sql", "mssql", "database", "llm"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/akryk7316/sqldb-mcp-server/issues"
+  },
+  "homepage": "https://github.com/akryk7316/sqldb-mcp-server#readme",
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": ["**/__tests__/**/*.test.ts"],
+    "coverageDirectory": "coverage"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "dotenv": "^17.3.1",
+    "mssql": "^12.2.1",
+    "node-sql-parser": "^5.4.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/mssql": "^9.1.9",
+    "@types/node": "^25.5.0",
+    "@types/node-sql-parser": "^1.0.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
