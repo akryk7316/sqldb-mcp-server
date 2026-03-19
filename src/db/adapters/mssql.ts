@@ -1,5 +1,5 @@
 import sql from "mssql";
-import { DBAdapter, QueryResult, TableInfo, TableDescription, ColumnDetail, IndexInfo, ForeignKeyInfo, ConstraintInfo, ExplainResult, ExplainRow } from "../types";
+import { DBAdapter, QueryResult, TableInfo, TableDescription, ColumnDetail, IndexInfo, ForeignKeyInfo, ConstraintInfo } from "../types";
 
 const DEFAULT_QUERY_TIMEOUT = 30_000;
 
@@ -74,7 +74,8 @@ export class MSSQLAdapter implements DBAdapter {
     return { rows: cleanRows, totalCount };
   }
 
-  async explainQuery(sqlText: string): Promise<ExplainResult> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async explainQuery(sqlText: string): Promise<any> {
     await this.connect();
 
     // Use a transaction to hold one connection so that the session-level
@@ -92,30 +93,7 @@ export class MSSQLAdapter implements DBAdapter {
       // changes occur because SHOWPLAN_ALL prevents actual execution).
       await transaction.rollback();
 
-      const planRows = planResult.recordset as Record<string, unknown>[];
-
-      const plan: ExplainRow[] = planRows.map((row) => ({
-        stmtText: String(row["StmtText"] ?? ""),
-        stmtId: row["StmtId"] != null ? Number(row["StmtId"]) : undefined,
-        nodeId: row["NodeId"] != null ? Number(row["NodeId"]) : undefined,
-        parent: row["Parent"] != null ? Number(row["Parent"]) : undefined,
-        physicalOp: row["PhysicalOp"] != null ? String(row["PhysicalOp"]) : undefined,
-        logicalOp: row["LogicalOp"] != null ? String(row["LogicalOp"]) : undefined,
-        argument: row["Argument"] != null ? String(row["Argument"]) : undefined,
-        definedValues: row["DefinedValues"] != null ? String(row["DefinedValues"]) : undefined,
-        estimateRows: row["EstimateRows"] != null ? Number(row["EstimateRows"]) : undefined,
-        estimateIO: row["EstimateIO"] != null ? Number(row["EstimateIO"]) : undefined,
-        estimateCPU: row["EstimateCPU"] != null ? Number(row["EstimateCPU"]) : undefined,
-        avgRowSize: row["AvgRowSize"] != null ? Number(row["AvgRowSize"]) : undefined,
-        totalSubtreeCost: row["TotalSubtreeCost"] != null ? Number(row["TotalSubtreeCost"]) : undefined,
-        outputList: row["OutputList"] != null ? String(row["OutputList"]) : undefined,
-        warnings: row["Warnings"] != null ? String(row["Warnings"]) : undefined,
-        type: row["Type"] != null ? String(row["Type"]) : undefined,
-        parallel: row["Parallel"] != null ? Number(row["Parallel"]) !== 0 : undefined,
-        estimateExecutions: row["EstimateExecutions"] != null ? Number(row["EstimateExecutions"]) : undefined,
-      }));
-
-      return { sql: sqlText, plan };
+      return { sql: sqlText, plan: planResult.recordset };
     } catch (err) {
       try {
         await transaction.rollback();

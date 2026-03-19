@@ -57,36 +57,11 @@ export interface TableDescription {
   comment?: string;
 }
 
-export interface ExplainRow {
-  stmtText: string;
-  stmtId?: number;
-  nodeId?: number;
-  parent?: number;
-  physicalOp?: string;
-  logicalOp?: string;
-  argument?: string;
-  definedValues?: string;
-  estimateRows?: number;
-  estimateIO?: number;
-  estimateCPU?: number;
-  avgRowSize?: number;
-  totalSubtreeCost?: number;
-  outputList?: string;
-  warnings?: string;
-  type?: string;
-  parallel?: boolean;
-  estimateExecutions?: number;
-}
-
-export interface ExplainResult {
-  sql: string;
-  plan: ExplainRow[];
-}
-
 export interface DBAdapter {
   query(sql: string, skip: number, take: number): Promise<QueryResult>;
   listTables(): Promise<TableInfo[]>;
   describeTable(table: string, schema?: string): Promise<TableDescription>;
-  explainQuery(sql: string): Promise<ExplainResult>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  explainQuery(sql: string): Promise<any>;
   close(): Promise<void>;
 }

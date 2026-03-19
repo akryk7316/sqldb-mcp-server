@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { DBAdapter, ExplainResult } from "../../db/types";
+import { DBAdapter } from "../../db/types";
 import { validateSQL } from "../../utils/sanitize";
 import { TTLCache, getCacheTTL } from "../../utils/cache";
 
-const explainCache = new TTLCache<ExplainResult>(getCacheTTL());
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const explainCache = new TTLCache<any>(getCacheTTL());
 
 export const explainQueryInputSchema = {
   sql: z.string().min(1).describe("SELECT SQL statement whose execution plan should be retrieved"),
@@ -26,10 +27,8 @@ export function registerExplainQueryTool(server: {
     {
       description:
         "Return the estimated execution plan for a SELECT SQL query without actually executing it. " +
-        "Each row in the `plan` array represents one operator node in the query plan tree. " +
-        "Key fields: physicalOp/logicalOp (operator type), estimateRows (expected rows), " +
-        "totalSubtreeCost (cumulative cost), argument (operator details), warnings (any plan warnings). " +
-        "The parent field links child nodes to their parent nodeId, forming the plan tree.",
+        "The response format depends on the database engine (e.g. MSSQL, PostgreSQL, MySQL) " +
+        "and is returned as-is from the database driver.",
       inputSchema: explainQueryInputSchema,
     },
     async ({ sql }) => {

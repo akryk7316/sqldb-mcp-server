@@ -10,7 +10,7 @@ A **read-only** [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
 - **Pagination** – `skip` / `take` parameters with automatic cap at 100 rows
 - **Total-count aware** – every query result includes `meta.totalCount` so the LLM knows how many rows exist
 - **Caching** – query / schema results are cached with a configurable TTL
-- **Three MCP tools**: `query`, `listTables`, `describeTable`
+- **Four MCP tools**: `query`, `listTables`, `describeTable`, `explainQuery`
 
 ## Quick Start
 
@@ -82,6 +82,23 @@ Describe a table's columns, indexes, foreign keys, check constraints, and size s
 { "table": "dbo.users" }
 ```
 
+### `explainQuery`
+
+Return the estimated execution plan for a `SELECT` SQL query without actually executing it.
+
+```json
+{ "sql": "SELECT id, name FROM users WHERE active = 1" }
+```
+
+The response format depends on the database engine and is returned as-is from the database driver (no normalisation is applied). For example, on MSSQL the result contains a `plan` array of raw recordset rows from `SET SHOWPLAN_ALL ON`.
+
+```json
+{
+  "sql": "SELECT id, name FROM users WHERE active = 1",
+  "plan": [{ "StmtText": "...", "PhysicalOp": "Clustered Index Scan", ... }]
+}
+```
+
 ## Development
 
 ```bash
@@ -99,6 +116,7 @@ src/
       query.ts          # query tool
       listTables.ts     # listTables tool
       describeTable.ts  # describeTable tool
+      explainQuery.ts   # explainQuery tool
   db/
     index.ts            # DB adapter factory
     types.ts            # DB interfaces
