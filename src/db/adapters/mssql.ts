@@ -1,22 +1,30 @@
 import sql from "mssql";
-import { DBAdapter, QueryResult, TableInfo, TableDescription, ColumnDetail, IndexInfo, ForeignKeyInfo, ConstraintInfo } from "../types";
+import { DBAdapter, QueryResult, TableInfo, TableDescription, ColumnDetail, IndexInfo, ForeignKeyInfo, ConstraintInfo, ExplainResult, ExplainRow } from "../types";
 
 const DEFAULT_QUERY_TIMEOUT = 30_000;
+const DEFAULT_EXPORT_QUERY_TIMEOUT = 300_000; // 5 minutes
 
 export class MSSQLAdapter implements DBAdapter {
   private pool: sql.ConnectionPool;
+  private exportPool: sql.ConnectionPool | null = null;
   private readonly queryTimeout: number;
+  private readonly exportQueryTimeout: number;
 
   constructor() {
     this.queryTimeout = Number(process.env.DB_QUERY_TIMEOUT) || DEFAULT_QUERY_TIMEOUT;
-    this.pool = new sql.ConnectionPool({
+    this.exportQueryTimeout = Number(process.env.EXPORT_QUERY_TIMEOUT) || DEFAULT_EXPORT_QUERY_TIMEOUT;
+    this.pool = this.createPool(this.queryTimeout);
+  }
+
+  private createPool(timeout: number): sql.ConnectionPool {
+    return new sql.ConnectionPool({
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       server: process.env.DB_HOST!,
       port: Number(process.env.DB_PORT) || 1433,
       database: process.env.DB_NAME,
-      connectionTimeout: this.queryTimeout,
-      requestTimeout: this.queryTimeout,
+      connectionTimeout: timeout,
+      requestTimeout: timeout,
       options: {
         encrypt: false,
         trustServerCertificate: true,
@@ -29,6 +37,16 @@ export class MSSQLAdapter implements DBAdapter {
     });
   }
 
+  private async getExportPool(): Promise<sql.ConnectionPool> {
+    if (!this.exportPool) {
+      this.exportPool = this.createPool(this.exportQueryTimeout);
+    }
+    if (!this.exportPool.connected && !this.exportPool.connecting) {
+      await this.exportPool.connect();
+    }
+    return this.exportPool;
+  }
+
   async connect(): Promise<void> {
     if (!this.pool.connected && !this.pool.connecting) {
       await this.pool.connect();
@@ -38,6 +56,9 @@ export class MSSQLAdapter implements DBAdapter {
   async close(): Promise<void> {
     if (this.pool.connected) {
       await this.pool.close();
+    }
+    if (this.exportPool?.connected) {
+      await this.exportPool.close();
     }
   }
 
@@ -74,8 +95,60 @@ export class MSSQLAdapter implements DBAdapter {
     return { rows: cleanRows, totalCount };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async explainQuery(sqlText: string): Promise<any> {
+  async *queryStream(sqlText: string, signal?: AbortSignal): AsyncGenerator<Record<string, unknown>> {
+    if (signal?.aborted) {
+      throw new Error("Export was cancelled before starting");
+    }
+
+    const pool = await this.getExportPool();
+    const request = pool.request();
+    request.stream = true;
+
+    // Cancel the in-flight MSSQL request when the AbortSignal fires.
+    // The resulting error event is handled by the queue below.
+    if (signal) {
+      signal.addEventListener("abort", () => request.cancel(), { once: true });
+    }
+
+    // Bridge the event-based MSSQL stream to an AsyncGenerator via a shared
+    // queue and a single-waitier promise pattern.
+    type QueueItem =
+      | { kind: "row"; row: Record<string, unknown> }
+      | { kind: "done" }
+      | { kind: "error"; err: Error };
+
+    const queue: QueueItem[] = [];
+    let notify: (() => void) | null = null;
+
+    const push = (item: QueueItem): void => {
+      queue.push(item);
+      const fn = notify;
+      notify = null;
+      fn?.();
+    };
+
+    request.on("row", (row: Record<string, unknown>) => push({ kind: "row", row }));
+    request.on("error", (err: Error) => push({ kind: "error", err }));
+    request.on("done", () => push({ kind: "done" }));
+
+    // Kick off the query without blocking – events drive the queue above.
+    void request.query(sqlText);
+
+    while (true) {
+      if (queue.length === 0) {
+        await new Promise<void>((res) => {
+          notify = res;
+        });
+      }
+
+      const item = queue.shift()!;
+      if (item.kind === "done") return;
+      if (item.kind === "error") throw item.err;
+      yield item.row;
+    }
+  }
+
+  async explainQuery(sqlText: string): Promise<ExplainResult> {
     await this.connect();
 
     // Use a transaction to hold one connection so that the session-level
