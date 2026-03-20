@@ -24,7 +24,9 @@
 | ランタイム | Node.js / CommonJS | — | 実行環境・モジュールシステム |
 | プロトコル | @modelcontextprotocol/sdk | ^1.27.1 | MCP サーバー実装・stdio トランスポート |
 | DB ドライバ | mssql | ^12.2.1 | Microsoft SQL Server 接続・コネクションプール |
-| SQL パース | node-sql-parser | ^5.4.0 | AST ベースの SQL 検証（読み取り専用強制） |
+| DB ドライバ | pg + pg-cursor | ^8 / ^2 | PostgreSQL 接続・コネクションプール・カーソルストリーム |
+| DB ドライバ | mysql2 | ^3 | MySQL 接続・コネクションプール・ストリーム |
+| SQL パース | node-sql-parser | ^5.4.0 | AST ベースの SQL 検証（読み取り専用強制）。DB_TYPE に応じてダイアレクトを切り替え |
 | バリデーション | zod | ^4.3.6 | ツール入力スキーマの定義と検証 |
 | 環境変数 | dotenv | ^17.3.1 | `.env` ファイルの読み込み |
 | テスト | jest + ts-jest | ^30.3.0 / ^29.4.6 | ユニットテスト |
@@ -42,7 +44,10 @@ src/
 ├── db/
 │   ├── types.ts           # DB アダプターのインターフェース定義（queryStream を含む）
 │   ├── index.ts           # ファクトリ関数（DB_TYPE 環境変数に応じたアダプター生成）
-│   └── adapters/          # DB アダプター層。各 DB ドライバの実装（現在 MSSQL のみ）
+│   └── adapters/          # DB アダプター層。各 DB ドライバの実装（MSSQL / PostgreSQL / MySQL）
+│       ├── mssql.ts       # Microsoft SQL Server 実装（mssql）
+│       ├── postgresql.ts  # PostgreSQL 実装（pg + pg-cursor）
+│       └── mysql.ts       # MySQL 実装（mysql2）
 ├── utils/                 # ユーティリティ層。SQL 検証・結果フォーマット・ページネーション・キャッシュ・エクスポート
 └── __tests__/             # ユニットテスト（utils/ および tools/ の各モジュールに対応）
 ```
@@ -67,8 +72,8 @@ src/
 
 ### 設計指針
 
-- **読み取り専用の強制**：ツール層からの SQL は必ず `validateSQL()` を通過させる。AST レベルで SELECT 以外を拒否することで、インジェクション対策と権限制御を同時に実現する。
-- **アダプターパターン**：`DBAdapter` インターフェースを介してのみ DB にアクセスする。新しい DB に対応する場合は `db/adapters/` にアダプターを追加し、ファクトリ関数を修正するだけでよい。
+- **読み取り専用の強制**：ツール層からの SQL は必ず `validateSQL()` を通過させる。AST レベルで SELECT 以外を拒否することで、インジェクション対策と権限制御を同時に実現する。`DB_TYPE` に応じてダイアレクト（`TransactSQL` / `PostgreSQL` / `MySQL`）を切り替えることで、各 DB 固有の構文も正しく検証できる。
+- **アダプターパターン**：`DBAdapter` インターフェースを介してのみ DB にアクセスする。新しい DB に対応する場合は `db/adapters/` にアダプターを追加し、ファクトリ関数（`db/index.ts`）と `sanitize.ts` のダイアレクトマッピングを修正するだけでよい。現在は **MSSQL・PostgreSQL・MySQL** の 3 種類をサポートしている。
 - **入力検証は Zod で宣言的に**：ツールの入力スキーマは Zod で定義し、ランタイムの型安全と MCP ツール説明の自動生成を両立する。
 - **結果はコンパクト列指向フォーマット**：`toRowResult()` を必ず通じて返却する。オブジェクト配列ではなく `{ columns, rows, meta }` 形式にすることでトークン使用量を削減する。
 - **キャッシュは TTL ベース**：クエリ結果とスキーマ情報は `Cache` クラスで TTL 管理する。環境変数 `CACHE_TTL`（デフォルト 60 秒）で制御する。
