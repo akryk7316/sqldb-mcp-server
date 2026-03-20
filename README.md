@@ -13,22 +13,63 @@ A **read-only** [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
 - **File export** – stream query results to CSV or JSON files without a row-count limit
 - **Five MCP tools**: `query`, `listTables`, `describeTable`, `explainQuery`, `exportQuery`
 
+## Installation
+
+### From npm (recommended)
+
+```bash
+# Install globally
+npm install -g @akryk7316/sqldb-mcp-server
+
+# Or run directly with npx (no install needed)
+npx @akryk7316/sqldb-mcp-server
+```
+
+### From source
+
+```bash
+git clone https://github.com/akryk7316/sqldb-mcp-server.git
+cd sqldb-mcp-server
+npm install
+npm run build
+```
+
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
-npm install
+# 1. Install globally
+npm install -g @akryk7316/sqldb-mcp-server
 
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with your DB credentials
+# 2. Configure environment variables (see below)
+export DB_TYPE=postgresql
+export DB_HOST=localhost
+export DB_USER=myuser
+export DB_PASSWORD=mypassword
+export DB_NAME=mydb
 
-# 3. Run in dev mode
-npm run dev
+# 3. Run
+sqldb-mcp-server
+```
 
-# 4. Or build and run
-npm run build
-npm start
+Or use in your MCP client configuration (e.g. Claude Desktop `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "sqldb": {
+      "command": "npx",
+      "args": ["-y", "@akryk7316/sqldb-mcp-server"],
+      "env": {
+        "DB_TYPE": "postgresql",
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_USER": "myuser",
+        "DB_PASSWORD": "mypassword",
+        "DB_NAME": "mydb"
+      }
+    }
+  }
+}
 ```
 
 ## Environment Variables
@@ -143,8 +184,26 @@ The tool uses a separate, longer-lived connection pool whose `requestTimeout` is
 ## Development
 
 ```bash
-npm test        # Run unit tests
-npm run build   # Compile TypeScript → dist/
+# Clone the repository
+git clone https://github.com/akryk7316/sqldb-mcp-server.git
+cd sqldb-mcp-server
+
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your DB credentials
+
+# Run in dev mode (no compile step)
+npm run dev
+
+# Or build and run
+npm run build
+npm start
+
+# Run unit tests
+npm test
 ```
 
 ## Project Structure

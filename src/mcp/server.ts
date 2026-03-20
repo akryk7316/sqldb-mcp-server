@@ -9,13 +9,14 @@ import { registerListTablesTool } from "./tools/listTables";
 import { registerDescribeTableTool } from "./tools/describeTable";
 import { registerExplainQueryTool } from "./tools/explainQuery";
 import { registerExportQueryTool } from "./tools/exportQuery";
+import packageJson from "../../package.json";
 
 async function main(): Promise<void> {
   const db = createDBAdapter();
 
   const server = new McpServer({
     name: "sqldb-mcp-server",
-    version: "1.0.0",
+    version: packageJson.version,
   });
 
   registerQueryTool(server, db);
