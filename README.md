@@ -4,8 +4,8 @@ A **read-only** [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
 
 ## Features
 
-- **MSSQL** support (PostgreSQL / MySQL ready via adapters)
-- **Read-only** – only `SELECT` statements are allowed (enforced via AST-level SQL parsing)
+- **Multi-database** – supports **MSSQL**, **PostgreSQL**, and **MySQL**
+- **Read-only** – only `SELECT` statements are allowed (enforced via AST-level SQL parsing with the correct dialect per DB type)
 - **LLM-optimised** – results use a compact columnar format (column list + value rows) to reduce token usage
 - **Pagination** – `skip` / `take` parameters with automatic cap at 100 rows
 - **Total-count aware** – every query result includes `meta.totalCount` so the LLM knows how many rows exist
@@ -35,15 +35,23 @@ npm start
 
 | Variable | Default | Description |
 |---|---|---|
-| `DB_TYPE` | `mssql` | Database type (`mssql`) |
+| `DB_TYPE` | `mssql` | Database type: `mssql`, `postgresql`, or `mysql` |
 | `DB_HOST` | – | Database server hostname |
-| `DB_PORT` | `1433` | Database server port |
+| `DB_PORT` | `1433` / `5432` / `3306` | Database server port (default depends on `DB_TYPE`) |
 | `DB_USER` | – | Database username |
 | `DB_PASSWORD` | – | Database password |
 | `DB_NAME` | – | Database name |
 | `DB_QUERY_TIMEOUT` | `30000` | Query timeout in milliseconds (used by `query` / `explainQuery`) |
 | `EXPORT_QUERY_TIMEOUT` | `300000` | Export query timeout in milliseconds (used by `exportQuery`; default 5 min) |
 | `CACHE_TTL` | `60` | Cache TTL in seconds |
+
+### Default ports by DB type
+
+| `DB_TYPE` | Default `DB_PORT` |
+|---|---|
+| `mssql` | `1433` |
+| `postgresql` | `5432` |
+| `mysql` | `3306` |
 
 ## MCP Tools
 
@@ -53,7 +61,7 @@ Execute a `SELECT` SQL statement.
 
 ```json
 {
-  "sql": "SELECT TOP 10 id, name FROM users WHERE active = 1",
+  "sql": "SELECT id, name FROM users WHERE active = 1",
   "skip": 0,
   "take": 10
 }
@@ -152,13 +160,15 @@ src/
       explainQuery.ts   # explainQuery tool
       exportQuery.ts    # exportQuery tool (streaming file export)
   db/
-    index.ts            # DB adapter factory
+    index.ts            # DB adapter factory (selects adapter from DB_TYPE)
     types.ts            # DB interfaces (including queryStream)
     adapters/
-      mssql.ts          # MSSQL implementation
+      mssql.ts          # Microsoft SQL Server implementation
+      postgresql.ts     # PostgreSQL implementation (pg + pg-cursor)
+      mysql.ts          # MySQL implementation (mysql2)
   utils/
     row-result.ts       # Compact columnar result format
-    sanitize.ts         # AST-based SQL read-only validation
+    sanitize.ts         # AST-based SQL read-only validation (dialect-aware)
     pagination.ts       # skip/take normalisation
     cache.ts            # TTL in-memory cache
     export-writer.ts    # Streaming CSV / JSON file writer
