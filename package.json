@@ -1,6 +1,6 @@
 {
   "name": "@akrym1582/sqldb-mcp-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "MCP server for SQL database access (MSSQL, PostgreSQL, MySQL)",
   "main": "dist/mcp/server.js",
   "bin": {
