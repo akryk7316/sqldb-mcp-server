@@ -27,10 +27,10 @@ export class PostgreSQLAdapter implements DBAdapter {
     this.queryTimeout = Number(process.env.DB_QUERY_TIMEOUT) || DEFAULT_QUERY_TIMEOUT;
     this.exportQueryTimeout = Number(process.env.EXPORT_QUERY_TIMEOUT) || DEFAULT_EXPORT_QUERY_TIMEOUT;
     this.preferSSL = shouldUseEncryptedConnection(true);
-    this.pool = this.createPool(this.queryTimeout);
+    this.pool = this.createPool(this.queryTimeout, this.preferSSL);
   }
 
-  private createPool(timeoutMs: number, useSSL = this.preferSSL): Pool {
+  private createPool(timeoutMs: number, useSSL: boolean): Pool {
     return new Pool({
       host: process.env.DB_HOST,
       port: Number(process.env.DB_PORT) || 5432,
@@ -47,7 +47,7 @@ export class PostgreSQLAdapter implements DBAdapter {
 
   private getExportPool(): Pool {
     if (!this.exportPool) {
-      this.exportPool = this.createPool(this.exportQueryTimeout);
+      this.exportPool = this.createPool(this.exportQueryTimeout, this.preferSSL);
     }
     return this.exportPool;
   }
@@ -72,6 +72,10 @@ export class PostgreSQLAdapter implements DBAdapter {
 
       return run(fallbackPool);
     }
+  }
+
+  private connectWithRetry(pool: Pool, timeoutMs: number): Promise<PoolClient> {
+    return this.withPoolRetry(pool, timeoutMs, (targetPool) => targetPool.connect());
   }
 
   async close(): Promise<void> {
@@ -108,12 +112,7 @@ export class PostgreSQLAdapter implements DBAdapter {
       throw new Error("Export was cancelled before starting");
     }
 
-    const exportPool = await this.withPoolRetry(this.getExportPool(), this.exportQueryTimeout, async (pool) => {
-      const client = await pool.connect();
-      client.release();
-      return pool;
-    });
-    const client: PoolClient = await exportPool.connect();
+    const client: PoolClient = await this.connectWithRetry(this.getExportPool(), this.exportQueryTimeout);
     const BATCH_SIZE = 1000;
 
     try {
