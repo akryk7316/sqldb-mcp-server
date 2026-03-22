@@ -1,5 +1,6 @@
 import sql from "mssql";
 import { DBAdapter, QueryResult, TableInfo, TableDescription, ColumnDetail, IndexInfo, ForeignKeyInfo, ConstraintInfo, ExplainResult, ExplainRow } from "../types";
+import { shouldUseEncryptedConnection } from "./security";
 
 const DEFAULT_QUERY_TIMEOUT = 30_000;
 const DEFAULT_EXPORT_QUERY_TIMEOUT = 300_000; // 5 minutes
@@ -26,7 +27,7 @@ export class MSSQLAdapter implements DBAdapter {
       connectionTimeout: timeout,
       requestTimeout: timeout,
       options: {
-        encrypt: false,
+        encrypt: shouldUseEncryptedConnection(true),
         trustServerCertificate: true,
       },
       pool: {

@@ -82,6 +82,7 @@ Or use in your MCP client configuration (e.g. Claude Desktop `claude_desktop_con
 | `DB_USER` | – | Database username |
 | `DB_PASSWORD` | – | Database password |
 | `DB_NAME` | – | Database name |
+| `DB_ENCRYPT` | `true` for MSSQL/PostgreSQL, `false` for MySQL | Enables encrypted DB connections. MSSQL trusts the server certificate. PostgreSQL tries SSL first and falls back to plain if SSL is unavailable. MySQL uses TLS with certificate verification disabled when enabled. |
 | `DB_QUERY_TIMEOUT` | `30000` | Query timeout in milliseconds (used by `query` / `explainQuery`) |
 | `EXPORT_QUERY_TIMEOUT` | `300000` | Export query timeout in milliseconds (used by `exportQuery`; default 5 min) |
 | `CACHE_TTL` | `60` | Cache TTL in seconds |

@@ -12,6 +12,7 @@ import {
   ConstraintInfo,
   ExplainResult,
 } from "../types";
+import { shouldUseEncryptedConnection } from "./security";
 
 const DEFAULT_QUERY_TIMEOUT = 30_000;
 const DEFAULT_EXPORT_QUERY_TIMEOUT = 300_000;
@@ -31,6 +32,8 @@ export class MySQLAdapter implements DBAdapter {
   }
 
   private poolConfig(timeoutMs: number) {
+    const useEncryption = shouldUseEncryptedConnection(false);
+
     return {
       host: process.env.DB_HOST,
       port: Number(process.env.DB_PORT) || 3306,
@@ -40,6 +43,7 @@ export class MySQLAdapter implements DBAdapter {
       connectTimeout: timeoutMs,
       connectionLimit: 10,
       idleTimeout: 30_000,
+      ssl: useEncryption ? { rejectUnauthorized: false } : undefined,
     };
   }
 
